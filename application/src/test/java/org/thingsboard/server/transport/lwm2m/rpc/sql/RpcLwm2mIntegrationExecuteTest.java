@@ -96,7 +96,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"CHANGED"}
      */
     @Test
-    public void testExecuteResourceWithParametersOnlyOneDigitValueNullById_Result_Ok() throws Exception {
+    public void testExecuteResourceWithParametersSingleDigitValueById_Result_Ok() throws Exception {
         String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_4;
         Object expectedValue = 5;
         String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
@@ -110,7 +110,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
 
      */
     @Test
-    public void testExecuteResourceWithParametersDigit2Value60ById_Result_Ok() throws Exception {
+    public void testExecuteResourceWithParametersArgumentIdAndValueById_Result_Ok() throws Exception {
         String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
         Object expectedValue = "2='60'";
         String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
@@ -123,7 +123,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * Execute {"id":"3/0/5","value":"2,0='https://thingsboard.io/docs/reference/lwm2m-api/'"}
      */
     @Test
-    public void testExecuteResourceWithParametersDigit2_0_ValueLinkById_Result_Ok() throws Exception {
+    public void testExecuteResourceWithParametersMultipleArgumentsIncludingLinkById_Result_Ok() throws Exception {
         String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
         Object expectedValue = "2,0='https://thingsboard.io/docs/reference/lwm2m-api/'";
         String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
@@ -136,12 +136,46 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * Execute {"id":"3/0/5","value":"0,1,2,3,4,5,6,7,8,9"}
      */
     @Test
-    public void testExecuteResourceWithParametersDigitManyValueNullById_Result_Ok() throws Exception {
+    public void testExecuteResourceWithParametersMultipleArgumentsById_Result_Ok() throws Exception {
         String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
         Object expectedValue = "0,1,2,3,4,5,6,7,8,9";
         String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
         assertEquals(ResponseCode.CHANGED.getName(), rpcActualResult.get("result").asText());
+    }
+
+
+    /**
+     * execute_resource_with_parameters (execute Factory Reset after 60 seconds on device)
+     * Execute {"id":"3/0/5","value":"'60'"}
+
+     */
+    @Test
+    public void testExecuteResourceWithParametersSingleDigitValueInvalidById_BAD_REQUEST_Error_UintegerBetween_0_And_9_Expected() throws Exception {
+        String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
+        Object expectedValue = "'60'";
+        String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
+        ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
+        assertEquals(ResponseCode.BAD_REQUEST.getName(), rpcActualResult.get("result").asText());
+        String expected = "Unable to parse Arguments [" + expectedValue + "] : Invalid digit ['] (an integer between 0 and 9 is expected)";
+        String actual = rpcActualResult.get("error").asText();
+        assertTrue(actual.equals(expected));
+    }
+
+    /**
+     * execute_resource_with_parameters (execute Bad with Unable to parse Arguments)
+    * Execute {"id":"3/0/5","value":"0,1,2,3,4,5,6,7,8,9,60"}
+     */
+    @Test
+    public void testExecuteResourceWithParametersMultipleArgumentsById_Result_BAD_REQUEST_Error_UnableParseArguments() throws Exception {
+        String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
+        Object expectedValue = "0,1,2,3,4,5,6,7,8,9,60";
+        String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);;
+        ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
+        assertEquals(ResponseCode.BAD_REQUEST.getName(), rpcActualResult.get("result").asText());
+        String expected = "Unable to parse Arguments [" + expectedValue + "] : [,] separator expected at index 21 after [0,1,2,3,4,5,6,7,8,9,6]";
+        String actual = rpcActualResult.get("error").asText();
+        assertTrue(actual.equals(expected));
     }
 
     /**
@@ -150,7 +184,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"BAD_REQUEST","error":"probably no bootstrap server configured"}
      */
     @Test
-    public void testExecuteBootstrapRequestTriggerById_Result_BAD_REQUEST_Error_NoBootstrapServerConfigured() throws Exception {
+    public void testExecuteBootstrapRequestTriggerById_Result_BAD_REQUEST_Error_NoBootstrapServer() throws Exception {
         String expectedPath = objectInstanceIdVer_1 + "/" + RESOURCE_ID_9;
         String actualResult = sendRPCExecuteById(expectedPath);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
@@ -166,7 +200,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"BAD_REQUEST","error":"Resource with /5_1.0/0/3 is not executable."}
      */
     @Test
-    public void testExecuteResourceWithOperationNotExecuteById_Result_METHOD_NOT_ALLOWED() throws Exception {
+    public void testExecuteResourceWithOperationNotExecuteById_Result_BAD_REQUEST_Error_Is_Not_Executable() throws Exception {
         String expectedPath = objectInstanceIdVer_5 + "/" + RESOURCE_ID_3;
         String actualResult = sendRPCExecuteById(expectedPath);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
@@ -182,7 +216,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"BAD_REQUEST","error":"Specified object id 50 absent in the list supported objects of the client or is security object!"}
      */
     @Test
-    public void testExecuteNonExistingResourceOnNonExistingObjectById_Result_BAD_REQUEST() throws Exception {
+    public void testExecuteNonExistingResourceOnNonExistingObjectById_Result_BAD_REQUEST_Error_Specified_Object_Absent_List_Supported() throws Exception {
         String expectedPath = OBJECT_ID_VER_50 + "/" + OBJECT_INSTANCE_ID_0 + "/" + RESOURCE_ID_3;
         String actualResult = sendRPCExecuteById(expectedPath);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
@@ -200,7 +234,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"BAD_REQUEST","error":"Specified object id 0 absent in the list supported objects of the client or is security object!"}
      */
     @Test
-    public void testExecuteSecurityObjectById_Result_NOT_FOUND() throws Exception {
+    public void testExecuteSecurityObjectById_Result_BAD_REQUEST_Error_InvalidDigit() throws Exception {
         String expectedPath = objectIdVer_0 + "/" + OBJECT_INSTANCE_ID_0 + "/" + RESOURCE_ID_3;
         String actualResult = sendRPCExecuteById(expectedPath);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);

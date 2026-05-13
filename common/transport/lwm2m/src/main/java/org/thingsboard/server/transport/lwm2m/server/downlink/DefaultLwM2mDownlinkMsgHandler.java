@@ -279,16 +279,24 @@ public class DefaultLwM2mDownlinkMsgHandler extends LwM2MExecutorAwareService im
             }
             if (resourceModelExecute == null) {
                 callback.onValidationError(request.toString(), "ResourceModel with " + request.getVersionedId() +
-                        " is absent in system. Need ddd Lwm2m Model with id=" + pathIds.getObjectId() + " ver=" +
+                        " is absent in system. Need to add Model with id=" + pathIds.getObjectId() + " ver=" +
                         getVerFromPathIdVerOrId(request.getVersionedId()) + " to profile.");
             } else if (resourceModelExecute.operations.isExecutable()) {
                 ExecuteRequest downlink;
                 if (request.getParams() != null && !resourceModelExecute.multiple) {
                     Object params = request.getParams();
-                    ResourceModel.Type resourceModel = resourceModelExecute.type == ResourceModel.Type.NONE ? equalsResourceTypeGetSimpleName(params) : resourceModelExecute.type;
+                    ResourceModel.Type resourceModel = equalsResourceTypeGetSimpleName(params);
+                    if (resourceModel == null) {
+                        throw new InvalidArgumentException("Unsupported parameter type: " + params.getClass().getSimpleName() +
+                                ". Only simple types (String, Integer, Boolean, etc.) are allowed for Execute arguments.");
+                    }
                     String args = (String) this.converter.convertValue(params, resourceModel, ResourceModel.Type.STRING, new LwM2mPath(request.getObjectId()));
-                    Arguments arguments = Arguments.parse(args);
-                    downlink = new ExecuteRequest(request.getObjectId(), arguments);
+                    try {
+                        Arguments arguments = Arguments.parse(args);
+                        downlink = new ExecuteRequest(request.getObjectId(), arguments);
+                    } catch (IllegalArgumentException e) {
+                        downlink = new ExecuteRequest(request.getObjectId(), args);
+                    }
                 } else {
                     downlink = new ExecuteRequest(request.getObjectId());
                 }

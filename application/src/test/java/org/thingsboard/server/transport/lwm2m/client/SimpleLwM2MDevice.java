@@ -162,7 +162,6 @@ public class SimpleLwM2MDevice extends BaseInstanceEnabler implements Destroyabl
         log.info("Execute on Device resource /{}/{}/{} {}", getModel().id, getId(), resourceId, withArguments);
         switch (resourceId) {
             case 4:
-                return ExecuteResponse.success();
             case 5:
                 return ExecuteResponse.success();
             default:
