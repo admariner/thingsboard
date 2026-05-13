@@ -37,7 +37,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ActionNotificationShow } from '@core/notification/notification.actions';
 import { DialogService } from '@core/services/dialog.service';
 import { deepClone, isUndefined } from '@core/utils';
-import { Filter, Filters, KeyFilterInfo } from '@shared/models/query/query.models';
+import { ComplexOperation, Filter, Filters, KeyFilterInfo } from '@shared/models/query/query.models';
 import { FilterDialogComponent, FilterDialogData } from '@home/components/filter/filter-dialog.component';
 import { DashboardUtilsService } from '@core/services/dashboard-utils.service';
 
@@ -52,10 +52,11 @@ export interface FiltersDialogData {
 }
 
 @Component({
-  selector: 'tb-filters-dialog',
-  templateUrl: './filters-dialog.component.html',
-  providers: [{provide: ErrorStateMatcher, useExisting: FiltersDialogComponent}],
-  styleUrls: ['./filters-dialog.component.scss']
+    selector: 'tb-filters-dialog',
+    templateUrl: './filters-dialog.component.html',
+    providers: [{ provide: ErrorStateMatcher, useExisting: FiltersDialogComponent }],
+    styleUrls: ['./filters-dialog.component.scss'],
+    standalone: false
 })
 export class FiltersDialogComponent extends DialogComponent<FiltersDialogComponent, Filters>
   implements ErrorStateMatcher {
@@ -68,6 +69,8 @@ export class FiltersDialogComponent extends DialogComponent<FiltersDialogCompone
   filterNames: Set<string> = new Set<string>();
 
   filtersFormGroup: UntypedFormGroup;
+
+  displayedColumns = ['filter', 'editable', 'actions'];
 
   submitted = false;
 
@@ -131,7 +134,8 @@ export class FiltersDialogComponent extends DialogComponent<FiltersDialogCompone
       id: [filterId],
       filter: [filter ? filter.filter : null, [Validators.required]],
       keyFilters: [filter ? filter.keyFilters : [], [Validators.required]],
-      editable: [filter ? filter.editable : true]
+      editable: [filter ? filter.editable : true],
+      keyFiltersOperation: [filter?.keyFiltersOperation]
     });
     return filterFormControl;
   }
@@ -227,6 +231,7 @@ export class FiltersDialogComponent extends DialogComponent<FiltersDialogCompone
           filterFormControl.get('filter').patchValue(result.filter);
           filterFormControl.get('editable').patchValue(result.editable);
           filterFormControl.get('keyFilters').patchValue(result.keyFilters);
+          filterFormControl.get('keyFiltersOperation').patchValue(result.keyFiltersOperation);
         }
         this.filterNames.add(result.filter);
         this.filtersFormGroup.markAsDirty();
@@ -252,6 +257,7 @@ export class FiltersDialogComponent extends DialogComponent<FiltersDialogCompone
       const filter: string = filterValue.filter;
       const keyFilters: Array<KeyFilterInfo> = filterValue.keyFilters;
       const editable: boolean = filterValue.editable;
+      const keyFiltersOperation: ComplexOperation = filterValue.keyFiltersOperation;
       if (uniqueFilterList[filter]) {
         valid = false;
         message = this.translate.instant('filter.duplicate-filter-error', {filter});
@@ -262,7 +268,7 @@ export class FiltersDialogComponent extends DialogComponent<FiltersDialogCompone
         break;
       } else {
         uniqueFilterList[filter] = filter;
-        filters[filterId] = {id: filterId, filter, keyFilters, editable};
+        filters[filterId] = {id: filterId, filter, keyFilters, editable, keyFiltersOperation};
       }
     }
     if (valid) {
