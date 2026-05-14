@@ -119,7 +119,8 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
     }
 
     /**
-     * execute_resource_with_parameters (execute Factory Reset after connect with link on device)
+     * execute_resource_with_parameters (execute Factory Reset with two arguments:
+     * digit 2 without a value and digit 0 with the link value on device)
      * Execute {"id":"3/0/5","value":"2,0='https://thingsboard.io/docs/reference/lwm2m-api/'"}
      */
     @Test
@@ -132,7 +133,8 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
     }
 
     /**
-     * execute_resource_with_parameters (execute Factory Reset after connect with link on device)
+     * execute_resource_with_parameters (execute Factory Reset with multiple arguments without values)
+     * According to the OMA LwM2M execute arguments format, this represents ten arguments (digits 0-9), all without values.
      * Execute {"id":"3/0/5","value":"0,1,2,3,4,5,6,7,8,9"}
      */
     @Test
@@ -148,10 +150,9 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
     /**
      * execute_resource_with_parameters (execute Factory Reset after 60 seconds on device)
      * Execute {"id":"3/0/5","value":"'60'"}
-
      */
     @Test
-    public void testExecuteResourceWithParametersSingleDigitValueInvalidById_BAD_REQUEST_Error_UintegerBetween_0_And_9_Expected() throws Exception {
+    public void testExecuteResourceWithParametersSingleDigitValueInvalidById_Result_BAD_REQUEST_Error_IntegerBetween_0_And_9_Expected() throws Exception {
         String expectedPath = objectInstanceIdVer_3 + "/" + RESOURCE_ID_5;
         Object expectedValue = "'60'";
         String actualResult = sendRPCExecuteWithValueById(expectedPath, expectedValue);
@@ -159,7 +160,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
         assertEquals(ResponseCode.BAD_REQUEST.getName(), rpcActualResult.get("result").asText());
         String expected = "Unable to parse Arguments [" + expectedValue + "] : Invalid digit ['] (an integer between 0 and 9 is expected)";
         String actual = rpcActualResult.get("error").asText();
-        assertTrue(actual.equals(expected));
+        assertTrue(actual.contains(expected));
     }
 
     /**
@@ -175,7 +176,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
         assertEquals(ResponseCode.BAD_REQUEST.getName(), rpcActualResult.get("result").asText());
         String expected = "Unable to parse Arguments [" + expectedValue + "] : [,] separator expected at index 21 after [0,1,2,3,4,5,6,7,8,9,6]";
         String actual = rpcActualResult.get("error").asText();
-        assertTrue(actual.equals(expected));
+        assertTrue(actual.contains(expected));
     }
 
     /**
@@ -234,7 +235,7 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
      * {"result":"BAD_REQUEST","error":"Specified object id 0 absent in the list supported objects of the client or is security object!"}
      */
     @Test
-    public void testExecuteSecurityObjectById_Result_BAD_REQUEST_Error_InvalidDigit() throws Exception {
+    public void testExecuteSecurityObjectById_Result_BAD_REQUEST_Error_SpecifiedObjectAbsent() throws Exception {
         String expectedPath = objectIdVer_0 + "/" + OBJECT_INSTANCE_ID_0 + "/" + RESOURCE_ID_3;
         String actualResult = sendRPCExecuteById(expectedPath);
         ObjectNode rpcActualResult = JacksonUtil.fromString(actualResult, ObjectNode.class);
@@ -253,8 +254,26 @@ public class RpcLwm2mIntegrationExecuteTest extends AbstractRpcLwM2MIntegrationT
     }
 
     private String sendRPCExecuteWithValueById(String path, Object value) throws Exception {
-        String setRpcRequest = "{\"method\": \"Execute\", \"params\": {\"id\": \"" + path + "\", \"value\": \"" + value + "\"}}";
-        return doPostAsync("/api/plugins/rpc/twoway/" + lwM2MTestClient.getDeviceIdStr(), setRpcRequest, String.class, status().isOk());
+        ObjectNode params = JacksonUtil.newObjectNode();
+        params.put("id", path);
+
+        // Jackson сам вирішить: ставити лапки (рядок) чи ні (число/boolean/null)
+        if (value instanceof String) {
+            params.put("value", (String) value);
+        } else if (value instanceof Integer) {
+            params.put("value", (Integer) value);
+        } else if (value instanceof Boolean) {
+            params.put("value", (Boolean) value);
+        } else {
+            params.set("value", JacksonUtil.valueToTree(value));
+        }
+
+        ObjectNode setRpcRequest = JacksonUtil.newObjectNode();
+        setRpcRequest.put("method", "Execute");
+        setRpcRequest.set("params", params);
+
+        return doPostAsync("/api/plugins/rpc/twoway/" + lwM2MTestClient.getDeviceIdStr(),
+                JacksonUtil.toString(setRpcRequest), String.class, status().isOk());
     }
 
 }

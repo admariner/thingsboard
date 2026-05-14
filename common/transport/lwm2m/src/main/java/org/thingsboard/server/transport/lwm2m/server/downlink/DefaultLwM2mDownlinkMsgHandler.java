@@ -271,40 +271,34 @@ public class DefaultLwM2mDownlinkMsgHandler extends LwM2MExecutorAwareService im
             validateVersionedId(client, request);
             LwM2mPath pathIds = new LwM2mPath(fromVersionedIdToObjectId(request.getVersionedId()));
             ResourceModel resourceModelExecute = client.getResourceModel(request.getVersionedId(), modelProvider);
-            if (resourceModelExecute == null) {
-                LwM2mModel model = createModelsDefault();
-                if (pathIds.isResource()) {
-                    resourceModelExecute = model.getResourceModel(pathIds.getObjectId(), pathIds.getResourceId());
-                }
+            if (resourceModelExecute == null && pathIds.isResource()) {
+                resourceModelExecute = createModelsDefault().getResourceModel(pathIds.getObjectId(), pathIds.getResourceId());
             }
             if (resourceModelExecute == null) {
-                callback.onValidationError(request.toString(), "ResourceModel with " + request.getVersionedId() +
-                        " is absent in system. Need to add Model with id=" + pathIds.getObjectId() + " ver=" +
-                        getVerFromPathIdVerOrId(request.getVersionedId()) + " to profile.");
-            } else if (resourceModelExecute.operations.isExecutable()) {
-                ExecuteRequest downlink;
-                if (request.getParams() != null && !resourceModelExecute.multiple) {
-                    Object params = request.getParams();
-                    ResourceModel.Type resourceModel = equalsResourceTypeGetSimpleName(params);
-                    if (resourceModel == null) {
-                        throw new InvalidArgumentException("Unsupported parameter type: " + params.getClass().getSimpleName() +
-                                ". Only simple types (String, Integer, Boolean, etc.) are allowed for Execute arguments.");
-                    }
-                    String args = (String) this.converter.convertValue(params, resourceModel, ResourceModel.Type.STRING, new LwM2mPath(request.getObjectId()));
-                    try {
-                        Arguments arguments = Arguments.parse(args);
-                        downlink = new ExecuteRequest(request.getObjectId(), arguments);
-                    } catch (IllegalArgumentException e) {
-                        downlink = new ExecuteRequest(request.getObjectId(), args);
-                    }
-                } else {
-                    downlink = new ExecuteRequest(request.getObjectId());
+                throw new InvalidArgumentException(String.format("ResourceModel with %s is absent in the system. Need to add Model with id= %s  ver=%s  to profile.",
+                        request.getVersionedId(), pathIds.getObjectId(), getVerFromPathIdVerOrId(request.getVersionedId())));
+            }
+            if (!resourceModelExecute.operations.isExecutable()) {
+                throw new InvalidArgumentException(String.format("Resource with %s is not executable.", request.getVersionedId()));
+            }
+
+            ExecuteRequest downlink;
+            Object params = request.getParams();
+            // 4. Handle parameters if they exist and the resource is not a multiple-instance resource
+            if (params != null && !resourceModelExecute.multiple) {
+                ResourceModel.Type resourceModelType = equalsResourceTypeGetSimpleName(params);
+                if (resourceModelType == null) {
+                    throw new InvalidArgumentException(String.format("Unsupported parameter type: %s. Only simple types (String, Integer, Boolean, etc.) are allowed for Execute arguments.",
+                            params.getClass().getSimpleName()));
                 }
-                sendSimpleRequest(client, downlink, request.getTimeout(), callback);
+                String args = (String) this.converter.convertValue(params, resourceModelType, ResourceModel.Type.STRING, pathIds);
+                downlink = new ExecuteRequest(request.getObjectId(), args);
             } else {
-                callback.onValidationError(request.toString(), "Resource with " + request.getVersionedId() + " is not executable.");
+                downlink = new ExecuteRequest(request.getObjectId());
             }
-        } catch (InvalidRequestException | InvalidArgumentException e) {
+            sendSimpleRequest(client, downlink, request.getTimeout(), callback);
+        } catch (Exception e) {
+             log.error("[{}] Validation failed for Execute request: {}", client.getEndpoint(), e.getMessage());
             callback.onValidationError(request.toString(), e.getMessage());
         }
     }
